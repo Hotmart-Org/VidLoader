@@ -86,10 +86,12 @@ final class VideoListDataProvider: VideoListDataProviding {
     
     func startDownload(with data: VideoData) {
         guard let url = URL(string: data.stringURL) else { return }
-        vidLoaderHandler.loader.download(identifier: data.identifier,
-                                         url: url,
-                                         title: data.title,
-                                         artworkData: UIImage(named: data.imageName)?.jpegData(compressionQuality: 1))
+        vidLoaderHandler.loader.download(
+            identifier: data.identifier,
+            url: url,
+            title: data.title,
+            artworkData: UIImage(named: data.imageName)?.jpegData(compressionQuality: 1),
+            header: nil)
     }
     
     func stopDownload(with data: VideoData) {
