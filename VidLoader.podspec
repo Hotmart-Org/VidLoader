@@ -6,7 +6,7 @@ Pod::Spec.new do |spec|
   spec.homepage     = "https://github.com/Cyklet/VidLoader"
   spec.license      = { type: 'MIT', file: 'LICENSE' }
   spec.authors      = { "Petre Plotnic" => "www.linkedin.com/in/petre-plotnic" }
-  spec.platform     = :ios, "12.0"
+  spec.platform     = :ios, "10.0"
   spec.swift_version = "4.2"
   spec.requires_arc = true
   spec.source = { :git => "https://github.com/Cyklet/VidLoader.git", :tag => "#{spec.version}"}
