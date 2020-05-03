@@ -15,24 +15,27 @@ final class ResourceLoader: NSObject, AVAssetResourceLoaderDelegate {
     let queue = DispatchQueue(label: "com.vidloader.resource_loader_dispatch_url")
     private let observer: ResourceLoaderObserver
     private let masterParser: MasterParser
-    private let playlistParser: PlaylistParser
+    private var playlistParser: PlaylistParser
     private let streamResource: StreamResource
     private let requestable: Requestable
     private var didProvideFirstResponse = false
     private let schemeHandler: SchemeHandleable
+    private let header: [String: String]?
     
     init(observer: ResourceLoaderObserver,
          streamResource: StreamResource,
          masterParser: MasterParser = M3U8Master(),
          playlistParser: PlaylistParser = M3U8Playlist(),
          requestable: Requestable = URLSession.shared,
-         schemeHandler: SchemeHandleable = SchemeHandler.init()) {
+         schemeHandler: SchemeHandleable = SchemeHandler.init(),
+         header: [String: String]? = nil) {
         self.observer = observer
         self.streamResource = streamResource
         self.masterParser = masterParser
         self.playlistParser = playlistParser
         self.requestable = requestable
         self.schemeHandler = schemeHandler
+        self.header = header
     }
     
     // MARK: - AVAssetResourceLoaderDelegate
@@ -63,8 +66,12 @@ final class ResourceLoader: NSObject, AVAssetResourceLoaderDelegate {
         
     private func request(with url: URL,
                          completion: @escaping Completion<Result<(HTTPURLResponse, Data), Error>>) {
-        let request = URLRequest(url: url)
-        let task = requestable.dataTask(with: request) { data, response, error in
+
+        var urlRequest =  URLRequest(url: url)
+
+        header?.forEach({ urlRequest.addValue($0, forHTTPHeaderField: $1)})
+        
+        let task = requestable.dataTask(with: urlRequest) { data, response, error in
             guard let response = response as? HTTPURLResponse, let data = data else {
                 return completion(.failure(error ?? DownloadError.unknown))
             }
@@ -98,6 +105,7 @@ final class ResourceLoader: NSObject, AVAssetResourceLoaderDelegate {
                                     loadingRequest: AVAssetResourceLoadingRequest) {
         switch result {
         case .success(let response):
+            playlistParser.header = header
             playlistParser.adjust(data: response.1, with: baseURL, completion: { [weak self] result in
                 switch result {
                 case .success(let newData): loadingRequest.setup(response: response.0, data: newData)

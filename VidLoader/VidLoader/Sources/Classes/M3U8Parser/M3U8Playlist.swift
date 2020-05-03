@@ -9,6 +9,7 @@
 import AVFoundation
 
 protocol PlaylistParser {
+    var header: [String: String]? { get set }
     func adjust(data: Data, with baseURL: URL, completion: @escaping (Result<Data, M3U8Error>) -> Void)
 }
 
@@ -25,6 +26,8 @@ struct M3U8Playlist: PlaylistParser {
 
         return "\(chunkKey).*?[,\\n]((?!\(SchemeType.original.rawValue)).[\\S\\s]+?(?=\\n|#))"
     }()
+    
+    internal var header: [String: String]? = nil
 
     init(requestable: Requestable = URLSession.shared) {
         self.requestable = requestable
@@ -36,6 +39,7 @@ struct M3U8Playlist: PlaylistParser {
         guard let response = data.string else {
             return completion(.failure(.dataConversion))
         }
+
         let newResponse = replaceRelativeChunks(response: response, with: baseURL)
         replacePaths(response: newResponse, with: baseURL, completion: { result in
             switch result {
@@ -96,7 +100,12 @@ struct M3U8Playlist: PlaylistParser {
     }
     
     private func downloadKey(url: URL, completion: @escaping (Result<String, M3U8Error>) -> Void) {
-        let task = requestable.dataTask(with: URLRequest(url: url)) { data, _, error in
+        
+        var urlRequest =  URLRequest(url: url)
+        
+        header?.forEach({ urlRequest.addValue($0, forHTTPHeaderField: $1)})
+
+        let task = requestable.dataTask(with: urlRequest) { data, _, error in
             guard let data = data else {
                 return completion(.failure(.custom(error ?|> VidLoaderError.init)))
             }

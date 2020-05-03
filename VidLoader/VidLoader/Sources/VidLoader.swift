@@ -26,7 +26,7 @@ public protocol VidLoadable {
     ///   - title: Item title that will be presented in the phone settings
     ///   - artworkData: Item thumbnail that will be presented in the phone settings
     func download(identifier: String, url: URL,
-                  title: String, artworkData: Data?)
+                  title: String, artworkData: Data?, header: [String: String]?)
 
     /// Call cancel method when download must be stoped
     /// - Parameter identifier: Item unique identifier
@@ -113,12 +113,13 @@ public final class VidLoader: VidLoadable {
         observersHandler.remove(observer)
     }
 
-    public func download(identifier: String, url: URL, title: String, artworkData: Data?) {
+    public func download(identifier: String, url: URL, title: String, artworkData: Data?, header: [String: String]?) {
         guard activeItems[identifier] == nil else { return }
         let item = ItemInformation(identifier: identifier,
                                    title: title.removingIllegalCharacters,
                                    mediaLink: url.absoluteString,
                                    state: .unknown,
+                                   header: header,
                                    artworkData: artworkData)
         activeItems[identifier] = item
         handle(event: .prefetching, activeItem: item)
@@ -224,7 +225,7 @@ public final class VidLoader: VidLoadable {
                 self?.handle(event: .failed(error: .init(error: error)), activeItem: item)
             }
         }
-        playlistLoader.load(identifier: item.identifier, at: url, completion: handleResult)
+        playlistLoader.load(identifier: item.identifier, at: url, header: item.header, completion: handleResult)
     }
 
     private func startNewTaskIfNeeded() {
@@ -232,13 +233,24 @@ public final class VidLoader: VidLoadable {
         guard let streamResource = playlistLoader.nextStreamResource,
             let item = activeItems[streamResource.0],
             let url = URL(string: item.mediaLink) else { return }
-        switch schemeHandler.urlAsset(with: url) {
+        
+        var authOptions: [String: Any]? = nil
+        if let options = item.header {
+            authOptions = self.setupCookies(url: url, with: options)
+        }
+        
+        switch schemeHandler.urlAsset(with: url, options: authOptions) {
         case .success(let urlAsset):
             startTask(urlAsset: urlAsset, streamResource: streamResource.1, item: item)
         case .failure(let error):
             handle(event: .failed(error: .init(error: error)), activeItem: item)
         }
     }
+    
+    private func setupCookies(url: URL, with json: [String: String]) -> [String: Any]? {
+          
+          return ["AVURLAssetHTTPHeaderFieldsKey": json]
+      }
 
     private func startTask(urlAsset: AVURLAsset, streamResource: StreamResource, item: ItemInformation) {
         guard let task = session.addNewTask(urlAsset: urlAsset, for: item) else {
@@ -259,7 +271,7 @@ public final class VidLoader: VidLoadable {
             self?.handle(event: .failed(error: .init(error: error)), activeItem: item)
         }
         let observer = ResourceLoaderObserver(taskDidFail: taskDidFail, keyDidLoad: keyDidLoad)
-        let resourceLoader = ResourceLoader(observer: observer, streamResource: streamResource)
+        let resourceLoader = ResourceLoader(observer: observer, streamResource: streamResource, header: item.header)
         task.urlAsset.resourceLoader.setDelegate(resourceLoader, queue: resourceLoader.queue)
         task.urlAsset.resourceLoader.preloadsEligibleContentKeys = true
         resourcesDelegatesHandler.add(identifier: item.identifier, loader: resourceLoader)

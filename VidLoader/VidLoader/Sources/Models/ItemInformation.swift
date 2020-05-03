@@ -10,6 +10,7 @@ import Foundation
 
 /// ItemInformation is a stream description that is used and saved in the download task
 public struct ItemInformation: Codable, Equatable {
+        
     /// Item unique identifier
     public let identifier: String
     /// The path where the stream was downloaded
@@ -22,14 +23,18 @@ public struct ItemInformation: Codable, Equatable {
     public let title: String?
     /// Current downloaded bytes
     public let downloadedBytes: Int
+    /// options for header auth etc..
+    public let header: [String: String]?
     /// Item thumbnail that will be presented in the phone settings
     let artworkData: Data?
     /// Current item download progress
     let progress: Double
+    
 
     init(identifier: String, title: String?, path: String? = nil,
          mediaLink: String = "", progress: Double = 0,
          state: DownloadState, downloadedBytes: Int = 0,
+         header: [String: String]? = nil,
          artworkData: Data?) {
         self.identifier = identifier
         self.title = title
@@ -39,6 +44,7 @@ public struct ItemInformation: Codable, Equatable {
         self.state = state
         self.downloadedBytes = downloadedBytes
         self.artworkData = artworkData
+        self.header = header
     }
 
     public var location: URL? {
@@ -77,6 +83,7 @@ extension ItemInformation {
         set: { ItemInformation(identifier: $1.identifier, title: $1.title, path: $1.path,
                                 mediaLink: $1.mediaLink, progress: $1.progress,
                                 state: $0, downloadedBytes: $1.downloadedBytes,
+                                header: $1.header,
                                 artworkData: $1.artworkData) }
     )
 
@@ -85,6 +92,7 @@ extension ItemInformation {
         set: { ItemInformation(identifier: $1.identifier, title: $1.title, path: $0,
                                 mediaLink: $1.mediaLink, progress: $1.progress,
                                 state: $1.state, downloadedBytes: $1.downloadedBytes,
+                                header: $1.header,
                                 artworkData: $1.artworkData) }
     )
 
@@ -93,6 +101,7 @@ extension ItemInformation {
         set: { ItemInformation(identifier: $1.identifier, title: $1.title, path: $1.path,
                                 mediaLink: $1.mediaLink, progress: $0,
                                 state: $1.state, downloadedBytes: $1.downloadedBytes,
+                                header: $1.header,
                                 artworkData: $1.artworkData) }
     )
 
@@ -101,6 +110,7 @@ extension ItemInformation {
         set: { ItemInformation(identifier: $1.identifier, title: $1.title, path: $1.path,
                                 mediaLink: $1.mediaLink, progress: $1.progress,
                                 state: $1.state, downloadedBytes: $0,
+                                header: $1.header,
                                 artworkData: $1.artworkData) }
     )
 }

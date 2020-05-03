@@ -10,7 +10,7 @@ import Foundation
 
 protocol PlaylistLoadable {
     var nextStreamResource: (String, StreamResource)? { get }
-    func load(identifier: String, at url: URL,
+    func load(identifier: String, at url: URL, header: [String: String]?,
               completion: @escaping Completion<Result<Void, Error>>)
     func cancel(identifier: String)
 }
@@ -33,14 +33,18 @@ final class PlaylistLoader: PlaylistLoadable {
         return streamsResources.value.removeFirst()
     }
 
-    func load(identifier: String, at url: URL, completion: @escaping Completion<Result<Void, Error>>) {
+    func load(identifier: String, at url: URL, header: [String: String]? = nil, completion: @escaping Completion<Result<Void, Error>>) {
         let handle: (HTTPURLResponse, Data) -> Void = { [weak self] response, data in
             let streamResource = StreamResource(response: response, data: data)
             self?.addStreamResource(streamResource, identifier: identifier)
             completion(.success(()))
         }
 
-        let dataTask = requestable.dataTask(with: URLRequest(url: url)) { [weak self] data, response, error in
+        var urlRequest =  URLRequest(url: url)
+
+        header?.forEach({ urlRequest.addValue($0, forHTTPHeaderField: $1)})
+        
+        let dataTask = requestable.dataTask(with: urlRequest) { [weak self] data, response, error in
             self?.removeFromRelay(identifier)
             guard let response = response as? HTTPURLResponse, let data = data else {
                 return completion(.failure(error ?? DownloadError.unknown))
@@ -51,6 +55,26 @@ final class PlaylistLoader: PlaylistLoadable {
 
         addToRelay(identifier: identifier, dataTask: dataTask)
     }
+    
+    private func setupCookies(url: URL, with json: [[String: String]]) -> [String: Any]? {
+           
+           var cookies = [HTTPCookie]()
+           
+           for cookie in json {
+               
+               for key in cookie.keys {
+                   
+                   let cookieField = ["Set-Cookie": "\(key)=\(cookie[key] ?? "")"]
+                   let cookie = HTTPCookie.cookies(withResponseHeaderFields: cookieField, for: url)
+                   cookies.append(contentsOf: cookie)
+               }
+           }
+           
+           let values = HTTPCookie.requestHeaderFields(with: cookies)
+           
+           return ["AVURLAssetHTTPHeaderFieldsKey": values]
+       }
+    
 
     func cancel(identifier: String) {
         requestsInProgress.value[identifier]?.cancel()
